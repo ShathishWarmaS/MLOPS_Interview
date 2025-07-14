@@ -3,7 +3,7 @@ Pydantic Models for Fraud Detection API
 Data validation and serialization models
 """
 
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Dict, Any, List
 from enum import Enum
 import uuid
@@ -114,7 +114,8 @@ class TransactionRequest(BaseModel):
         example="USD"
     )
     
-    @validator('merchant_category')
+    @field_validator('merchant_category')
+    @classmethod
     def validate_merchant_category(cls, v):
         """Validate merchant category"""
         valid_categories = ['grocery', 'gas', 'restaurant', 'retail', 'online', 'other']
@@ -122,7 +123,8 @@ class TransactionRequest(BaseModel):
             raise ValueError(f'merchant_category must be one of {valid_categories}')
         return v.lower()
     
-    @validator('merchant')
+    @field_validator('merchant')
+    @classmethod
     def validate_merchant(cls, v):
         """Validate merchant name"""
         # Remove excessive whitespace and validate length
@@ -131,7 +133,8 @@ class TransactionRequest(BaseModel):
             raise ValueError('merchant name cannot be empty')
         return cleaned
     
-    @validator('currency')
+    @field_validator('currency')
+    @classmethod
     def validate_currency(cls, v):
         """Validate currency code"""
         valid_currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD']
@@ -139,7 +142,8 @@ class TransactionRequest(BaseModel):
             raise ValueError(f'currency must be one of {valid_currencies}')
         return v.upper()
     
-    @validator('ip_address')
+    @field_validator('ip_address')
+    @classmethod
     def validate_ip_address(cls, v):
         """Basic IP address validation"""
         if v is None:
@@ -153,12 +157,12 @@ class TransactionRequest(BaseModel):
         except ValueError:
             raise ValueError('Invalid IP address format')
     
-    @root_validator
-    def validate_transaction_logic(cls, values):
+    @model_validator(mode='after')
+    def validate_transaction_logic(self):
         """Validate business logic constraints"""
-        amount = values.get('amount')
-        merchant_category = values.get('merchant_category')
-        hour = values.get('hour')
+        amount = self.amount
+        merchant_category = self.merchant_category
+        hour = self.hour
         
         # Business rule validations
         if amount and merchant_category:
@@ -166,7 +170,7 @@ class TransactionRequest(BaseModel):
             if merchant_category in ['gas', 'grocery'] and amount > 1000:
                 pass  # Log warning but don't reject
         
-        return values
+        return self
     
     class Config:
         """Pydantic config"""
@@ -418,7 +422,8 @@ class BatchPredictionRequest(BaseModel):
         description="Batch identifier"
     )
     
-    @validator('transactions')
+    @field_validator('transactions')
+    @classmethod
     def validate_batch_size(cls, v):
         """Validate batch size limits"""
         if len(v) > 1000:
