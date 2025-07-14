@@ -1,0 +1,427 @@
+{
+  "name": "ML Training Pipeline",
+  "description": "Complete machine learning model training pipeline with data validation, feature engineering, training, evaluation, and deployment",
+  "version": "1.0.0",
+  "tags": ["ml", "training", "pipeline", "template"],
+  "category": "Machine Learning",
+  "author": "n8n MLOps Platform",
+  "nodes": [
+    {
+      "id": "data_source",
+      "name": "Load Training Data",
+      "type": "dataSource",
+      "position": [100, 200],
+      "parameters": {
+        "dataSource": "database",
+        "databaseConnection": "postgresql://mlops_user:password@localhost:5432/mlops_db",
+        "sqlQuery": "SELECT * FROM training_data WHERE created_at >= NOW() - INTERVAL '30 days'",
+        "cacheResults": true,
+        "cacheTtl": 3600
+      },
+      "disabled": false
+    },
+    {
+      "id": "data_validation",
+      "name": "Validate Data Quality",
+      "type": "dataValidation",
+      "position": [350, 200],
+      "parameters": {
+        "validationRules": [
+          {
+            "type": "completeness",
+            "columns": ["feature1", "feature2", "target"],
+            "threshold": 0.95
+          },
+          {
+            "type": "uniqueness",
+            "columns": ["id"],
+            "threshold": 1.0
+          },
+          {
+            "type": "range",
+            "column": "feature1",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "failOnError": true,
+        "generateReport": true
+      },
+      "disabled": false
+    },
+    {
+      "id": "feature_engineering",
+      "name": "Feature Engineering",
+      "type": "featureEngineering",
+      "position": [600, 200],
+      "parameters": {
+        "operations": [
+          {
+            "type": "scaling",
+            "method": "standard",
+            "columns": ["feature1", "feature2", "feature3"]
+          },
+          {
+            "type": "encoding",
+            "method": "one_hot",
+            "columns": ["category1", "category2"]
+          },
+          {
+            "type": "feature_selection",
+            "method": "mutual_info",
+            "k_best": 10
+          }
+        ],
+        "targetColumn": "target",
+        "saveTransformers": true,
+        "transformerPath": "./models/transformers/"
+      },
+      "disabled": false
+    },
+    {
+      "id": "data_split",
+      "name": "Train/Test Split",
+      "type": "dataSplit",
+      "position": [850, 200],
+      "parameters": {
+        "splitMethod": "random",
+        "trainSize": 0.8,
+        "testSize": 0.2,
+        "randomState": 42,
+        "stratify": true,
+        "stratifyColumn": "target"
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_training_rf",
+      "name": "Train Random Forest",
+      "type": "modelTraining",
+      "position": [1100, 150],
+      "parameters": {
+        "algorithm": "random_forest",
+        "hyperparameters": {
+          "n_estimators": 100,
+          "max_depth": 10,
+          "min_samples_split": 5,
+          "min_samples_leaf": 2,
+          "random_state": 42
+        },
+        "crossValidation": {
+          "enabled": true,
+          "folds": 5,
+          "scoring": "accuracy"
+        },
+        "modelName": "fraud_detection_rf",
+        "savePath": "./models/"
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_training_xgb",
+      "name": "Train XGBoost",
+      "type": "modelTraining",
+      "position": [1100, 250],
+      "parameters": {
+        "algorithm": "xgboost",
+        "hyperparameters": {
+          "n_estimators": 150,
+          "max_depth": 8,
+          "learning_rate": 0.1,
+          "subsample": 0.8,
+          "colsample_bytree": 0.8,
+          "random_state": 42
+        },
+        "crossValidation": {
+          "enabled": true,
+          "folds": 5,
+          "scoring": "roc_auc"
+        },
+        "modelName": "fraud_detection_xgb",
+        "savePath": "./models/"
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_evaluation",
+      "name": "Evaluate Models",
+      "type": "modelEvaluation",
+      "position": [1350, 200],
+      "parameters": {
+        "metrics": [
+          "accuracy",
+          "precision",
+          "recall",
+          "f1_score",
+          "roc_auc",
+          "confusion_matrix"
+        ],
+        "generateReport": true,
+        "reportPath": "./reports/",
+        "plotConfusionMatrix": true,
+        "plotRocCurve": true,
+        "plotFeatureImportance": true
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_selection",
+      "name": "Select Best Model",
+      "type": "modelSelection",
+      "position": [1600, 200],
+      "parameters": {
+        "selectionCriteria": "roc_auc",
+        "minimumScore": 0.85,
+        "ensembleModels": false,
+        "saveSelectedModel": true,
+        "selectedModelPath": "./models/selected/"
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_registry",
+      "name": "Register Model",
+      "type": "modelRegistry",
+      "position": [1850, 200],
+      "parameters": {
+        "registryType": "mlflow",
+        "registryUrl": "http://mlflow:5000",
+        "modelName": "fraud_detection_model",
+        "modelVersion": "latest",
+        "modelStage": "staging",
+        "tags": {
+          "team": "data-science",
+          "project": "fraud-detection",
+          "algorithm": "ensemble"
+        },
+        "description": "Fraud detection model trained on latest data"
+      },
+      "disabled": false
+    },
+    {
+      "id": "deployment_validation",
+      "name": "Validate for Deployment",
+      "type": "deploymentValidation",
+      "position": [2100, 200],
+      "parameters": {
+        "validationTests": [
+          {
+            "type": "performance",
+            "metric": "roc_auc",
+            "threshold": 0.88,
+            "required": true
+          },
+          {
+            "type": "bias",
+            "fairnessMetrics": ["demographic_parity", "equalized_odds"],
+            "threshold": 0.1,
+            "required": true
+          },
+          {
+            "type": "drift",
+            "driftThreshold": 0.05,
+            "required": false
+          }
+        ],
+        "approvalRequired": true,
+        "approvers": ["data-science-lead", "ml-engineer"]
+      },
+      "disabled": false
+    },
+    {
+      "id": "model_deployment",
+      "name": "Deploy to Production",
+      "type": "modelDeployment",
+      "position": [2350, 200],
+      "parameters": {
+        "deploymentTarget": "kubernetes",
+        "namespace": "ml-models",
+        "serviceName": "fraud-detection-api",
+        "deploymentStrategy": "blue_green",
+        "scaling": {
+          "minReplicas": 2,
+          "maxReplicas": 10,
+          "targetCPUUtilization": 70
+        },
+        "monitoring": {
+          "enabled": true,
+          "metricsEndpoint": "/metrics",
+          "healthEndpoint": "/health"
+        },
+        "canaryTraffic": 10
+      },
+      "disabled": false
+    },
+    {
+      "id": "notification_success",
+      "name": "Success Notification",
+      "type": "notification",
+      "position": [2600, 150],
+      "parameters": {
+        "channels": ["slack", "email"],
+        "slackWebhook": "${SLACK_WEBHOOK_URL}",
+        "emailRecipients": ["data-science@company.com", "ml-ops@company.com"],
+        "message": "🎉 ML Training Pipeline completed successfully!\n\nModel: {{$node['model_selection'].json['selectedModel']['name']}}\nAccuracy: {{$node['model_evaluation'].json['metrics']['accuracy']}}\nDeployment: {{$node['model_deployment'].json['deploymentUrl']}}",
+        "subject": "ML Pipeline Success - {{$workflow.name}}"
+      },
+      "disabled": false
+    },
+    {
+      "id": "notification_failure",
+      "name": "Failure Notification",
+      "type": "notification",
+      "position": [2600, 250],
+      "parameters": {
+        "channels": ["slack", "email"],
+        "slackWebhook": "${SLACK_WEBHOOK_URL}",
+        "emailRecipients": ["data-science@company.com", "ml-ops@company.com"],
+        "message": "❌ ML Training Pipeline failed!\n\nError: {{$node['$execution'].json['error']}}\nWorkflow: {{$workflow.name}}\nExecution ID: {{$execution.id}}",
+        "subject": "ML Pipeline Failure - {{$workflow.name}}",
+        "priority": "high"
+      },
+      "disabled": false
+    }
+  ],
+  "connections": [
+    {
+      "source": "data_source",
+      "sourceOutput": 0,
+      "target": "data_validation",
+      "targetInput": 0
+    },
+    {
+      "source": "data_validation",
+      "sourceOutput": 0,
+      "target": "feature_engineering",
+      "targetInput": 0
+    },
+    {
+      "source": "feature_engineering",
+      "sourceOutput": 0,
+      "target": "data_split",
+      "targetInput": 0
+    },
+    {
+      "source": "data_split",
+      "sourceOutput": 0,
+      "target": "model_training_rf",
+      "targetInput": 0
+    },
+    {
+      "source": "data_split",
+      "sourceOutput": 0,
+      "target": "model_training_xgb",
+      "targetInput": 0
+    },
+    {
+      "source": "model_training_rf",
+      "sourceOutput": 0,
+      "target": "model_evaluation",
+      "targetInput": 0
+    },
+    {
+      "source": "model_training_xgb",
+      "sourceOutput": 0,
+      "target": "model_evaluation",
+      "targetInput": 1
+    },
+    {
+      "source": "model_evaluation",
+      "sourceOutput": 0,
+      "target": "model_selection",
+      "targetInput": 0
+    },
+    {
+      "source": "model_selection",
+      "sourceOutput": 0,
+      "target": "model_registry",
+      "targetInput": 0
+    },
+    {
+      "source": "model_registry",
+      "sourceOutput": 0,
+      "target": "deployment_validation",
+      "targetInput": 0
+    },
+    {
+      "source": "deployment_validation",
+      "sourceOutput": 0,
+      "target": "model_deployment",
+      "targetInput": 0
+    },
+    {
+      "source": "model_deployment",
+      "sourceOutput": 0,
+      "target": "notification_success",
+      "targetInput": 0
+    }
+  ],
+  "settings": {
+    "timezone": "UTC",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "enabled": true,
+      "workflowId": "error_handler_workflow"
+    }
+  },
+  "triggers": [
+    {
+      "type": "schedule",
+      "name": "Daily Training",
+      "parameters": {
+        "cron": "0 2 * * *",
+        "timezone": "UTC"
+      },
+      "enabled": true
+    },
+    {
+      "type": "webhook",
+      "name": "Manual Trigger",
+      "parameters": {
+        "path": "ml-training-trigger",
+        "method": "POST",
+        "authentication": "basicAuth"
+      },
+      "enabled": true
+    },
+    {
+      "type": "dataChange",
+      "name": "New Data Available",
+      "parameters": {
+        "tableName": "training_data",
+        "changeType": "insert",
+        "minimumRows": 1000
+      },
+      "enabled": false
+    }
+  ],
+  "variables": {
+    "MODEL_VERSION": "v1.0.0",
+    "EXPERIMENT_NAME": "fraud_detection_experiment",
+    "MODEL_THRESHOLD": "0.85",
+    "DEPLOYMENT_ENVIRONMENT": "production"
+  },
+  "metadata": {
+    "created": "2024-01-15T00:00:00.000Z",
+    "lastModified": "2024-01-15T00:00:00.000Z",
+    "version": "1.0.0",
+    "complexity": "advanced",
+    "estimatedRuntime": "30-45 minutes",
+    "requiredResources": {
+      "cpu": "4 cores",
+      "memory": "8GB",
+      "storage": "50GB"
+    },
+    "dependencies": [
+      "python>=3.8",
+      "scikit-learn>=1.0",
+      "xgboost>=1.5",
+      "mlflow>=2.0",
+      "pandas>=1.3",
+      "numpy>=1.21"
+    ]
+  }
+}

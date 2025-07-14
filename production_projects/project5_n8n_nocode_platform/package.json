@@ -1,0 +1,108 @@
+{
+  "name": "n8n-mlops-platform",
+  "version": "1.0.0",
+  "description": "No-Code MLOps Automation Platform built on n8n",
+  "main": "packages/core/src/index.ts",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "lerna run build",
+    "dev": "lerna run dev --parallel",
+    "dev:web": "cd packages/editor-ui && npm run dev",
+    "dev:worker": "cd packages/core && npm run dev:worker",
+    "start": "lerna run start",
+    "test": "lerna run test",
+    "test:coverage": "lerna run test:coverage",
+    "lint": "lerna run lint",
+    "lint:fix": "lerna run lint:fix",
+    "typecheck": "lerna run typecheck",
+    "clean": "lerna run clean && lerna clean --yes",
+    "reset": "npm run clean && npm install",
+    "bootstrap": "lerna bootstrap",
+    "version": "lerna version",
+    "publish": "lerna publish",
+    "docker:build": "docker-compose -f docker/docker-compose.yml build",
+    "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker-compose -f docker/docker-compose.yml logs -f",
+    "setup": "npm run bootstrap && npm run build",
+    "setup:dev": "npm run bootstrap && npm run dev",
+    "db:migrate": "cd packages/core && npm run db:migrate",
+    "db:seed": "cd packages/core && npm run db:seed",
+    "db:reset": "cd packages/core && npm run db:reset",
+    "workflow:export": "cd packages/cli && npm run workflow:export",
+    "workflow:import": "cd packages/cli && npm run workflow:import",
+    "node:build": "cd packages/nodes-ml && npm run build",
+    "node:dev": "cd packages/nodes-ml && npm run dev",
+    "docs:dev": "cd docs-site && npm run start",
+    "docs:build": "cd docs-site && npm run build",
+    "docs:deploy": "cd docs-site && npm run deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/company/n8n-mlops-platform.git"
+  },
+  "keywords": [
+    "n8n",
+    "mlops",
+    "machine-learning",
+    "workflow",
+    "automation",
+    "no-code",
+    "data-science",
+    "ai",
+    "ml-pipeline"
+  ],
+  "author": "MLOps Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/company/n8n-mlops-platform/issues"
+  },
+  "homepage": "https://github.com/company/n8n-mlops-platform#readme",
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.4.0",
+    "eslint": "^8.47.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-plugin-vue": "^9.15.1",
+    "jest": "^29.6.2",
+    "lerna": "^7.1.5",
+    "prettier": "^3.0.1",
+    "typescript": "^5.1.6",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "concurrently": "^8.2.0",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,js,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "n8n-workflow": "^1.0.0",
+    "n8n-core": "^1.0.0"
+  },
+  "volta": {
+    "node": "20.5.0",
+    "npm": "9.8.1"
+  }
+}
