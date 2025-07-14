@@ -1,0 +1,257 @@
+# Kubernetes Deployment Scenarios for ML Models
+
+---
+# Scenario 1: High-Availability ML Model Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-model-deployment
+  namespace: ml-production
+  labels:
+    app: ml-model
+    version: v1.2.3
+    component: inference
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ml-model
+  template:
+    metadata:
+      labels:
+        app: ml-model
+        version: v1.2.3
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: ml-model-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: ml-model
+        image: gcr.io/project/ml-model:v1.2.3
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: metrics
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: MODEL_VERSION
+          value: "v1.2.3"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: MAX_WORKERS
+          value: "4"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        volumeMounts:
+        - name: model-storage
+          mountPath: /app/models
+          readOnly: true
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-storage-pvc
+      - name: config
+        configMap:
+          name: ml-model-config
+      nodeSelector:
+        workload-type: ml-inference
+      tolerations:
+      - key: "ml-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+---
+# Scenario 2: GPU-Enabled ML Model Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-ml-model
+  namespace: ml-production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gpu-ml-model
+  template:
+    metadata:
+      labels:
+        app: gpu-ml-model
+    spec:
+      containers:
+      - name: gpu-model
+        image: gcr.io/project/gpu-ml-model:latest
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: 1
+        env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        volumeMounts:
+        - name: shm
+          mountPath: /dev/shm
+      volumes:
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+      nodeSelector:
+        accelerator: nvidia-tesla-k80
+
+---
+# Service for ML Model
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-model-service
+  namespace: ml-production
+  labels:
+    app: ml-model
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: ml-model
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ml-model-hpa
+  namespace: ml-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ml-model-deployment
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: inference_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ml-model-pdb
+  namespace: ml-production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ml-model
+
+---
+# ConfigMap for Model Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-model-config
+  namespace: ml-production
+data:
+  model_config.yaml: |
+    model:
+      name: "fraud_detection"
+      version: "v1.2.3"
+      threshold: 0.8
+      batch_size: 32
+    logging:
+      level: "INFO"
+      format: "json"
+    monitoring:
+      enabled: true
+      metrics_port: 8080
+
+# INTERVIEW SCENARIOS AND QUESTIONS:
+
+# Scenario 1: High Traffic Spike
+# Question: How would you handle a sudden 10x increase in traffic?
+# Expected Answer: HPA scaling, resource limits, circuit breakers
+
+# Scenario 2: Node Failure
+# Question: What happens if a node fails during deployment?
+# Expected Answer: Pod distribution, PDB, anti-affinity rules
+
+# Scenario 3: Model Update
+# Question: How do you deploy a new model version without downtime?
+# Expected Answer: Rolling updates, blue-green deployment, canary
+
+# Scenario 4: Resource Optimization
+# Question: How would you optimize resource usage for cost efficiency?
+# Expected Answer: Resource requests/limits, VPA, node selectors
+
+# Scenario 5: Security Compliance
+# Question: How do you ensure the deployment meets security standards?
+# Expected Answer: RBAC, security contexts, network policies

@@ -1,0 +1,185 @@
+# Docker Compose for Local ML Development Environment
+# Scenario: Complete MLOps stack for development and testing
+
+version: '3.8'
+
+services:
+  # MLflow Tracking Server
+  mlflow:
+    image: python:3.9-slim
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://mlflow:password@postgres:5432/mlflow
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=s3://mlflow-artifacts
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+    command: >
+      bash -c "pip install mlflow psycopg2-binary boto3 &&
+               mlflow server --host 0.0.0.0 --port 5000"
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - ./mlflow:/mlflow
+
+  # PostgreSQL for MLflow backend
+  postgres:
+    image: postgres:13
+    container_name: mlflow-postgres
+    environment:
+      - POSTGRES_DB=mlflow
+      - POSTGRES_USER=mlflow
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # MinIO for artifact storage
+  minio:
+    image: minio/minio:latest
+    container_name: mlflow-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  # ML Model Serving
+  model-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml-model
+    container_name: ml-model-server
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/models/model.pkl
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    depends_on:
+      - mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: ml-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ml-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ml-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+
+  # Jupyter Notebook for development
+  jupyter:
+    image: jupyter/datascience-notebook:latest
+    container_name: ml-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=mlops-demo
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./data:/home/jovyan/data
+
+  # Data processing worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: ml-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    depends_on:
+      - redis
+      - mlflow
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: mlops-network
+
+# INTERVIEW QUESTIONS:
+
+# 1. Service Discovery:
+# Q: How do services communicate with each other?
+# A: Docker Compose creates a network where services can reach each other by name
+
+# 2. Data Persistence:
+# Q: What happens to data when containers restart?
+# A: Named volumes ensure data persistence across container restarts
+
+# 3. Environment Variables:
+# Q: How would you handle secrets in this setup?
+# A: Use Docker secrets, external secret management, or .env files
+
+# 4. Scaling:
+# Q: How would you scale individual services?
+# A: docker-compose up --scale service=N, but better to use orchestration
+
+# 5. Health Checks:
+# Q: How do you ensure services are healthy?
+# A: Implement health checks and readiness probes
+
+# 6. Logging:
+# Q: How would you centralize logging?
+# A: Add ELK stack or use logging drivers
+
+# PRACTICE SCENARIOS:
+# 1. Add a new microservice for data validation
+# 2. Implement service mesh with Istio
+# 3. Add database migrations
+# 4. Implement backup and restore
+# 5. Add SSL/TLS termination

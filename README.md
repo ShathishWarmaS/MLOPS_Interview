@@ -285,6 +285,4 @@ This comprehensive preparation covers all aspects of MLOps engineering from hand
 ---
 
 **Created for:** MLOps & MLflow Engineer Interview Preparation  
-**Salary Range:** ₹24L – ₹30L  
-**Experience:** 3-5 years  
-**Focus:** Production ML systems, automation, and scalability# MLOPS_Interview
+**Focus:** Production ML systems, automation, and scalability# MLOPS_Interviews
