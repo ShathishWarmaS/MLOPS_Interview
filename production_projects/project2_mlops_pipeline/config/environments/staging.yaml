@@ -1,0 +1,241 @@
+# Staging Environment Configuration
+
+# Environment Settings
+environment: staging
+debug: false
+log_level: INFO
+
+# API Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 2
+  reload: false
+  cors:
+    allow_origins: ["https://staging.mlops.company.com"]
+    allow_methods: ["GET", "POST"]
+    allow_headers: ["Content-Type", "Authorization"]
+    allow_credentials: true
+
+# Database Configuration
+database:
+  url: postgresql://mlflow_staging:${DB_PASSWORD}@staging-db:5432/mlflow_staging
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: https://mlflow-staging.mlops.company.com
+  experiment_name: mlops_staging
+  artifact_root: s3://mlops-staging-artifacts/
+  registry_uri: postgresql://mlflow_staging:${DB_PASSWORD}@staging-db:5432/mlflow_staging
+
+# Redis Configuration
+redis:
+  url: redis://staging-redis:6379/0
+  max_connections: 20
+  socket_timeout: 10
+
+# Storage Configuration
+storage:
+  type: s3
+  bucket: mlops-staging-data
+  region: us-west-2
+  base_path: data/
+  model_artifacts_path: models/
+  
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  batch_size: 500
+  collection_interval: 60  # seconds
+  retention_days: 30
+  
+  # Drift Detection
+  drift_detection:
+    enabled: true
+    reference_window_size: 5000
+    detection_window_size: 500
+    threshold: 0.03
+    methods: ["ks_test", "chi2_test", "psi"]
+  
+  # Alerting
+  alerting:
+    enabled: true
+    webhook_url: https://hooks.slack.com/services/staging/webhook
+    slack_token: ${SLACK_TOKEN}
+    email_recipients: ["mlops-team@company.com"]
+
+# Training Configuration
+training:
+  data:
+    synthetic_data_size: 50000
+    test_size: 0.2
+    val_size: 0.2
+    random_state: 42
+  
+  models:
+    default_models: ["random_forest", "logistic_regression", "gradient_boosting", "xgboost"]
+    hyperparameter_tuning: true
+    cross_validation_folds: 5
+    early_stopping: true
+  
+  pipeline:
+    parallel_training: true
+    max_workers: 2
+    timeout_minutes: 120
+    auto_retry: true
+    retry_count: 2
+
+# Security Configuration
+security:
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+    burst_limit: 150
+  
+  authentication:
+    enabled: true
+    jwt_secret: ${JWT_SECRET}
+    token_expiry_hours: 8
+    require_https: true
+  
+  cors:
+    enabled: true
+    allow_origins: ["https://staging.mlops.company.com"]
+
+# Feature Flags
+features:
+  enable_batch_prediction: true
+  enable_drift_detection: true
+  enable_model_explanation: true
+  enable_a_b_testing: true
+  enable_hyperparameter_tuning: true
+  enable_advanced_monitoring: true
+  enable_canary_deployment: true
+
+# External Services
+external_services:
+  data_sources:
+    primary_database:
+      type: postgresql
+      host: staging-data-db
+      port: 5432
+      database: staging_data
+      username: data_reader
+      password: ${DATA_DB_PASSWORD}
+    
+    api_endpoints:
+      feature_store: https://feature-store-staging.company.com/api/v1
+      data_catalog: https://data-catalog-staging.company.com/api/v1
+    
+  notification_services:
+    slack:
+      enabled: true
+      webhook_url: https://hooks.slack.com/services/staging/webhook
+      token: ${SLACK_TOKEN}
+    email:
+      enabled: true
+      smtp_server: smtp.company.com
+      port: 587
+      username: mlops-notifications@company.com
+      password: ${EMAIL_PASSWORD}
+
+# Resource Limits
+resources:
+  max_memory_mb: 4096
+  max_cpu_cores: 4
+  max_concurrent_requests: 200
+  max_batch_size: 5000
+  request_timeout_seconds: 60
+  training_timeout_minutes: 180
+
+# Caching Configuration
+caching:
+  enabled: true
+  ttl_seconds: 1800  # 30 minutes
+  max_size_mb: 500
+  redis_cache: true
+  
+# Logging Configuration
+logging:
+  level: INFO
+  format: json
+  file_path: /var/log/mlops/staging.log
+  max_file_size_mb: 500
+  backup_count: 10
+  
+  # Centralized logging
+  centralized_logging:
+    enabled: true
+    endpoint: https://logs-staging.company.com/api/v1/ingest
+    api_key: ${LOGGING_API_KEY}
+  
+  # Log specific components
+  loggers:
+    training: INFO
+    serving: INFO
+    monitoring: INFO
+    security: WARN
+    root: INFO
+
+# Health Checks
+health_checks:
+  enabled: true
+  interval_seconds: 30
+  timeout_seconds: 10
+  
+  endpoints:
+    - name: database
+      type: postgresql
+      connection_string: ${DATABASE_URL}
+    - name: redis
+      type: redis
+      connection_string: ${REDIS_URL}
+    - name: mlflow
+      type: http
+      url: ${MLFLOW_TRACKING_URI}/health
+
+# Deployment Configuration
+deployment:
+  strategy: blue_green
+  canary_percentage: 10
+  rollback_threshold: 0.05  # 5% error rate
+  health_check_grace_period: 60
+  traffic_split:
+    staging: 100
+    production: 0
+
+# Model Validation
+model_validation:
+  enabled: true
+  minimum_accuracy: 0.75
+  minimum_precision: 0.70
+  minimum_recall: 0.70
+  drift_threshold: 0.05
+  
+  validation_data:
+    source: s3://mlops-staging-data/validation/
+    refresh_interval_hours: 24
+
+# Data Quality
+data_quality:
+  enabled: true
+  validation_rules_path: config/data_quality/staging_rules.yaml
+  fail_on_error: true
+  generate_reports: true
+  report_storage: s3://mlops-staging-reports/data-quality/
+
+# Compliance and Governance
+compliance:
+  data_retention_days: 730  # 2 years
+  audit_logging: true
+  encrypt_at_rest: true
+  encrypt_in_transit: true
+  
+  privacy:
+    anonymize_logs: true
+    data_masking: true
+    gdpr_compliance: true

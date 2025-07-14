@@ -1,0 +1,206 @@
+# Random Forest Model Configuration
+
+model:
+  name: random_forest
+  type: RandomForestClassifier
+  framework: sklearn
+  version: "1.0"
+  
+# Hyperparameters
+hyperparameters:
+  # Basic parameters
+  n_estimators: 100
+  max_depth: 10
+  min_samples_split: 2
+  min_samples_leaf: 1
+  max_features: "sqrt"
+  
+  # Performance parameters
+  bootstrap: true
+  oob_score: true
+  n_jobs: -1
+  random_state: 42
+  
+  # Regularization
+  max_samples: null
+  min_weight_fraction_leaf: 0.0
+  max_leaf_nodes: null
+  min_impurity_decrease: 0.0
+  
+  # Advanced parameters
+  ccp_alpha: 0.0
+  class_weight: "balanced"
+  criterion: "gini"
+
+# Hyperparameter Search Space
+hyperparameter_search:
+  method: random_search  # grid_search, random_search, bayesian
+  n_trials: 100
+  
+  search_space:
+    n_estimators:
+      type: choice
+      values: [50, 100, 150, 200, 300]
+    
+    max_depth:
+      type: choice
+      values: [5, 10, 15, 20, null]
+    
+    min_samples_split:
+      type: uniform
+      low: 2
+      high: 20
+    
+    min_samples_leaf:
+      type: uniform
+      low: 1
+      high: 10
+    
+    max_features:
+      type: choice
+      values: ["sqrt", "log2", 0.3, 0.5, 0.7]
+    
+    class_weight:
+      type: choice
+      values: [null, "balanced", "balanced_subsample"]
+
+# Training Configuration
+training:
+  validation_strategy: stratified_kfold
+  cv_folds: 5
+  scoring_metric: f1_score
+  
+  early_stopping:
+    enabled: false  # Not applicable for Random Forest
+  
+  ensemble:
+    enabled: true
+    voting: soft
+    weights: null
+
+# Feature Configuration
+features:
+  selection:
+    enabled: true
+    method: feature_importance
+    threshold: 0.001
+    
+  importance:
+    method: permutation  # built_in, permutation, shap
+    n_repeats: 10
+    
+  preprocessing:
+    scaling: false  # Random Forest doesn't require scaling
+    encoding:
+      categorical: ordinal
+      missing_values: median
+
+# Model Validation
+validation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - log_loss
+    - confusion_matrix
+  
+  thresholds:
+    min_accuracy: 0.75
+    min_precision: 0.70
+    min_recall: 0.70
+    min_f1_score: 0.70
+    min_roc_auc: 0.80
+  
+  cross_validation:
+    enabled: true
+    folds: 5
+    stratified: true
+    shuffle: true
+
+# Interpretability
+interpretability:
+  feature_importance:
+    enabled: true
+    plot: true
+    top_features: 20
+  
+  shap_analysis:
+    enabled: true
+    sample_size: 1000
+    plots: ["summary", "waterfall", "force"]
+  
+  tree_visualization:
+    enabled: true
+    max_trees: 3
+    max_depth: 5
+
+# Model Monitoring
+monitoring:
+  drift_detection:
+    feature_drift: true
+    prediction_drift: true
+    
+  performance_monitoring:
+    enabled: true
+    metrics: ["accuracy", "f1_score", "precision", "recall"]
+    threshold_degradation: 0.05
+  
+  data_quality:
+    missing_values_threshold: 0.1
+    outlier_detection: true
+
+# Deployment Configuration
+deployment:
+  model_format: pickle
+  compression: true
+  
+  inference:
+    batch_size: 1000
+    parallel_predictions: true
+    memory_optimization: true
+  
+  scaling:
+    auto_scaling: true
+    min_instances: 2
+    max_instances: 10
+    target_latency_ms: 100
+
+# Resource Requirements
+resources:
+  training:
+    cpu_cores: 4
+    memory_gb: 8
+    gpu_required: false
+    estimated_time_minutes: 30
+  
+  inference:
+    cpu_cores: 1
+    memory_gb: 2
+    gpu_required: false
+    latency_target_ms: 50
+
+# Model Metadata
+metadata:
+  description: "Random Forest classifier for binary classification tasks"
+  author: "MLOps Team"
+  tags: ["classification", "ensemble", "interpretable"]
+  
+  strengths:
+    - "Handles mixed data types well"
+    - "Built-in feature importance"
+    - "Robust to outliers"
+    - "No need for feature scaling"
+    - "Good baseline performance"
+  
+  limitations:
+    - "Can overfit on noisy data"
+    - "Memory intensive for large datasets"
+    - "Less effective on very high-dimensional sparse data"
+  
+  use_cases:
+    - "Tabular data classification"
+    - "Feature selection"
+    - "Baseline model"
+    - "When interpretability is important"

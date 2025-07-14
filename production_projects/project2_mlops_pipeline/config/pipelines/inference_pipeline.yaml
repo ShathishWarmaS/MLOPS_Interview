@@ -1,0 +1,398 @@
+# Inference Pipeline Configuration
+
+pipeline:
+  name: inference_pipeline
+  description: "Real-time and batch inference pipeline"
+  version: "1.0"
+  
+# Pipeline Modes
+modes:
+  real_time:
+    enabled: true
+    max_latency_ms: 100
+    batch_size: 1
+    
+    preprocessing:
+      cache_preprocessor: true
+      validation_level: "basic"  # basic, full, strict
+      feature_store_lookup: true
+      
+    prediction:
+      model_cache: true
+      ensemble_voting: "soft"
+      probability_threshold: 0.5
+      
+    postprocessing:
+      explanation_enabled: true
+      confidence_scores: true
+      business_logic: true
+  
+  batch:
+    enabled: true
+    max_batch_size: 10000
+    chunk_size: 1000
+    parallel_processing: true
+    
+    preprocessing:
+      validation_level: "full"
+      feature_store_lookup: true
+      data_quality_checks: true
+      
+    prediction:
+      model_ensemble: true
+      uncertainty_quantification: true
+      
+    postprocessing:
+      detailed_explanations: true
+      batch_summary_report: true
+      output_validation: true
+
+# Input Configuration
+input:
+  real_time:
+    format: "json"
+    schema_validation: true
+    schema_path: "config/schemas/inference_input_schema.json"
+    
+    validation:
+      required_fields: ["feature_1", "feature_2", "feature_3", "feature_4"]
+      data_types:
+        feature_1: float
+        feature_2: float
+        feature_3: string
+        feature_4: integer
+      
+      ranges:
+        feature_1: [-10, 10]
+        feature_2: [0, 100]
+        feature_4: [0, 20]
+      
+      categorical_values:
+        feature_3: ["A", "B", "C"]
+  
+  batch:
+    format: "parquet"
+    location: "data/inference/input/"
+    file_pattern: "*.parquet"
+    
+    validation:
+      schema_enforcement: true
+      completeness_threshold: 0.95
+      duplicate_detection: true
+      
+    processing:
+      chunk_processing: true
+      parallel_chunks: 4
+      memory_optimization: true
+
+# Preprocessing Pipeline
+preprocessing:
+  feature_engineering:
+    enabled: true
+    use_training_pipeline: true
+    config_path: "config/features/inference_features.yaml"
+    
+  data_validation:
+    enabled: true
+    drift_detection:
+      enabled: true
+      reference_data_path: "data/reference/training_data.parquet"
+      drift_threshold: 0.05
+      alert_on_drift: true
+    
+    outlier_detection:
+      enabled: true
+      method: "isolation_forest"
+      contamination: 0.01
+      action: "flag"  # flag, remove, transform
+    
+    missing_values:
+      strategy: "model_based"  # model_based, imputation, default
+      max_missing_ratio: 0.1
+      
+  feature_store:
+    enabled: true
+    lookup_features:
+      - "user_profile_features"
+      - "historical_behavior_features"
+      - "contextual_features"
+    
+    caching:
+      enabled: true
+      ttl_minutes: 60
+      cache_size_mb: 500
+
+# Model Configuration
+model:
+  loading:
+    strategy: "lazy"  # lazy, eager, on_demand
+    cache_models: true
+    model_warmup: true
+    
+  selection:
+    strategy: "champion_challenger"
+    champion_model: "random_forest_v1.2"
+    challenger_models:
+      - name: "logistic_regression_v1.1"
+        traffic_percentage: 10
+      - name: "gradient_boosting_v1.0"
+        traffic_percentage: 5
+    
+    fallback_model: "logistic_regression_v1.0"
+    
+  ensemble:
+    enabled: true
+    method: "weighted_voting"
+    weights:
+      random_forest: 0.5
+      logistic_regression: 0.3
+      gradient_boosting: 0.2
+    
+    voting_strategy: "soft"  # soft, hard
+    confidence_threshold: 0.7
+
+# Prediction Configuration
+prediction:
+  output_format:
+    probability_scores: true
+    class_predictions: true
+    confidence_intervals: true
+    feature_contributions: true
+    
+  thresholding:
+    dynamic_threshold: true
+    threshold_optimization: "f1_score"
+    custom_thresholds:
+      high_precision: 0.8
+      balanced: 0.5
+      high_recall: 0.3
+    
+  uncertainty_quantification:
+    enabled: true
+    method: "dropout_monte_carlo"
+    n_samples: 100
+    confidence_level: 0.95
+
+# Postprocessing Pipeline
+postprocessing:
+  business_rules:
+    enabled: true
+    rules_path: "config/business_rules/inference_rules.yaml"
+    
+  explanation:
+    enabled: true
+    methods:
+      - "shap"
+      - "lime"
+    
+    shap_config:
+      explainer_type: "tree"  # tree, linear, kernel, deep
+      max_features: 10
+      background_samples: 100
+    
+    lime_config:
+      n_samples: 5000
+      n_features: 10
+      feature_selection: "auto"
+  
+  output_validation:
+    enabled: true
+    checks:
+      - "probability_sum_check"
+      - "confidence_range_check"
+      - "business_logic_check"
+    
+    actions:
+      on_failure: "flag"  # flag, reject, fallback
+
+# Output Configuration
+output:
+  real_time:
+    format: "json"
+    include_metadata: true
+    
+    response_structure:
+      prediction: true
+      probability: true
+      confidence: true
+      explanation: true
+      model_version: true
+      request_id: true
+      timestamp: true
+    
+    caching:
+      enabled: true
+      ttl_seconds: 300
+      cache_key_fields: ["feature_1", "feature_2", "feature_3", "feature_4"]
+  
+  batch:
+    format: "parquet"
+    location: "data/inference/output/"
+    partitioning: ["date", "model_version"]
+    
+    include_input_data: true
+    include_explanations: true
+    include_metadata: true
+    
+    compression: "snappy"
+    
+    summary_report:
+      enabled: true
+      include_distribution_plots: true
+      include_confidence_analysis: true
+
+# Monitoring and Logging
+monitoring:
+  performance:
+    latency_tracking: true
+    throughput_tracking: true
+    error_rate_tracking: true
+    
+    alerts:
+      high_latency_ms: 200
+      low_throughput_rps: 10
+      high_error_rate: 0.05
+  
+  data_quality:
+    input_monitoring: true
+    drift_monitoring: true
+    outlier_monitoring: true
+    
+    alerts:
+      drift_threshold: 0.05
+      outlier_rate_threshold: 0.1
+      missing_data_threshold: 0.05
+  
+  model_performance:
+    prediction_monitoring: true
+    confidence_monitoring: true
+    bias_monitoring: true
+    
+    feedback_loop:
+      enabled: true
+      ground_truth_collection: true
+      retraining_trigger: true
+
+# Caching Strategy
+caching:
+  levels:
+    input_cache:
+      enabled: true
+      ttl_minutes: 10
+      max_size_mb: 100
+    
+    feature_cache:
+      enabled: true
+      ttl_minutes: 60
+      max_size_mb: 500
+    
+    model_cache:
+      enabled: true
+      preload_models: true
+      memory_limit_gb: 4
+    
+    prediction_cache:
+      enabled: true
+      ttl_minutes: 30
+      max_size_mb: 200
+
+# Error Handling
+error_handling:
+  retry_strategy:
+    max_retries: 3
+    backoff_strategy: "exponential"
+    base_delay_ms: 100
+    max_delay_ms: 5000
+  
+  fallback_strategy:
+    enabled: true
+    fallback_model: "simple_rule_based"
+    fallback_timeout_ms: 50
+  
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    timeout_seconds: 60
+    half_open_max_calls: 3
+
+# Resource Management
+resources:
+  real_time:
+    cpu_cores: 2
+    memory_gb: 4
+    gpu_required: false
+    max_concurrent_requests: 100
+  
+  batch:
+    cpu_cores: 8
+    memory_gb: 16
+    gpu_required: false
+    parallel_workers: 4
+  
+  auto_scaling:
+    enabled: true
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu_utilization: 70
+    scale_up_cooldown_minutes: 5
+    scale_down_cooldown_minutes: 10
+
+# Security
+security:
+  authentication:
+    enabled: true
+    methods: ["api_key", "jwt"]
+    
+  authorization:
+    enabled: true
+    role_based_access: true
+    
+  data_protection:
+    encrypt_in_transit: true
+    mask_sensitive_features: true
+    audit_logging: true
+    
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_allowance: 1500
+
+# Integration
+integrations:
+  mlflow:
+    enabled: true
+    model_registry_uri: "${MLFLOW_TRACKING_URI}"
+    
+  feature_store:
+    enabled: true
+    provider: "feast"
+    config_path: "config/feature_store.yaml"
+  
+  monitoring:
+    prometheus: true
+    grafana: true
+    custom_dashboards: true
+  
+  alerting:
+    slack: true
+    email: true
+    pagerduty: true
+
+# Deployment
+deployment:
+  strategy: "canary"
+  canary_percentage: 10
+  rollback_threshold: 0.05
+  
+  health_checks:
+    liveness_probe:
+      path: "/health/live"
+      interval_seconds: 30
+    
+    readiness_probe:
+      path: "/health/ready"
+      interval_seconds: 10
+  
+  graceful_shutdown:
+    enabled: true
+    timeout_seconds: 30

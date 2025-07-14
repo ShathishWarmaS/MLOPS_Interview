@@ -1,0 +1,368 @@
+# Production Environment Configuration
+
+# Environment Settings
+environment: production
+debug: false
+log_level: WARN
+
+# API Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 8
+  reload: false
+  cors:
+    allow_origins: ["https://mlops.company.com", "https://app.company.com"]
+    allow_methods: ["GET", "POST"]
+    allow_headers: ["Content-Type", "Authorization"]
+    allow_credentials: true
+
+# Database Configuration
+database:
+  url: postgresql://mlflow_prod:${DB_PASSWORD}@prod-db-cluster:5432/mlflow_prod
+  pool_size: 20
+  max_overflow: 40
+  echo: false
+  ssl_mode: require
+  connection_timeout: 30
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: https://mlflow.mlops.company.com
+  experiment_name: mlops_production
+  artifact_root: s3://mlops-prod-artifacts/
+  registry_uri: postgresql://mlflow_prod:${DB_PASSWORD}@prod-db-cluster:5432/mlflow_prod
+
+# Redis Configuration
+redis:
+  url: redis://prod-redis-cluster:6379/0
+  max_connections: 50
+  socket_timeout: 15
+  cluster_mode: true
+
+# Storage Configuration
+storage:
+  type: s3
+  bucket: mlops-prod-data
+  region: us-west-2
+  base_path: data/
+  model_artifacts_path: models/
+  encryption: true
+  versioning: true
+  
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  batch_size: 1000
+  collection_interval: 30  # seconds
+  retention_days: 90
+  
+  # Advanced monitoring
+  advanced_metrics:
+    enabled: true
+    custom_metrics: true
+    business_metrics: true
+    model_performance_tracking: true
+  
+  # Drift Detection
+  drift_detection:
+    enabled: true
+    reference_window_size: 10000
+    detection_window_size: 1000
+    threshold: 0.02
+    methods: ["ks_test", "chi2_test", "psi", "wasserstein"]
+    sensitivity: high
+  
+  # Alerting
+  alerting:
+    enabled: true
+    webhook_url: https://hooks.slack.com/services/prod/webhook
+    slack_token: ${SLACK_PROD_TOKEN}
+    email_recipients: ["mlops-oncall@company.com", "engineering-leads@company.com"]
+    pager_duty:
+      enabled: true
+      integration_key: ${PAGERDUTY_KEY}
+    severity_levels:
+      critical: ["model_failure", "data_pipeline_failure"]
+      warning: ["drift_detected", "performance_degradation"]
+
+# Training Configuration
+training:
+  data:
+    synthetic_data_size: 100000
+    test_size: 0.15
+    val_size: 0.15
+    random_state: 42
+  
+  models:
+    default_models: ["random_forest", "logistic_regression", "gradient_boosting", "xgboost", "neural_network"]
+    hyperparameter_tuning: true
+    cross_validation_folds: 10
+    early_stopping: true
+    ensemble_methods: true
+  
+  pipeline:
+    parallel_training: true
+    max_workers: 8
+    timeout_minutes: 240
+    auto_retry: true
+    retry_count: 3
+    distributed_training: true
+
+# Security Configuration
+security:
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_limit: 1500
+    per_ip_limit: 100
+  
+  authentication:
+    enabled: true
+    jwt_secret: ${JWT_SECRET}
+    token_expiry_hours: 4
+    require_https: true
+    mfa_required: true
+  
+  cors:
+    enabled: true
+    allow_origins: ["https://mlops.company.com"]
+  
+  encryption:
+    data_at_rest: true
+    data_in_transit: true
+    key_rotation: true
+    key_rotation_days: 90
+
+# Feature Flags
+features:
+  enable_batch_prediction: true
+  enable_drift_detection: true
+  enable_model_explanation: true
+  enable_a_b_testing: true
+  enable_hyperparameter_tuning: true
+  enable_advanced_monitoring: true
+  enable_canary_deployment: true
+  enable_auto_scaling: true
+  enable_circuit_breaker: true
+
+# External Services
+external_services:
+  data_sources:
+    primary_database:
+      type: postgresql
+      host: prod-data-db-cluster
+      port: 5432
+      database: production_data
+      username: data_reader
+      password: ${DATA_DB_PASSWORD}
+      ssl_mode: require
+      connection_pool_size: 20
+    
+    secondary_database:
+      type: postgresql
+      host: prod-data-db-replica
+      port: 5432
+      database: production_data
+      username: data_reader_replica
+      password: ${DATA_DB_REPLICA_PASSWORD}
+      ssl_mode: require
+    
+    api_endpoints:
+      feature_store: https://feature-store.company.com/api/v1
+      data_catalog: https://data-catalog.company.com/api/v1
+      model_registry: https://model-registry.company.com/api/v1
+    
+  notification_services:
+    slack:
+      enabled: true
+      webhook_url: https://hooks.slack.com/services/prod/webhook
+      token: ${SLACK_PROD_TOKEN}
+    email:
+      enabled: true
+      smtp_server: smtp.company.com
+      port: 587
+      username: mlops-prod@company.com
+      password: ${EMAIL_PROD_PASSWORD}
+      encryption: tls
+    pager_duty:
+      enabled: true
+      integration_key: ${PAGERDUTY_KEY}
+      service_id: ${PAGERDUTY_SERVICE_ID}
+
+# Resource Limits
+resources:
+  max_memory_mb: 16384
+  max_cpu_cores: 16
+  max_concurrent_requests: 1000
+  max_batch_size: 10000
+  request_timeout_seconds: 120
+  training_timeout_minutes: 480
+  auto_scaling:
+    enabled: true
+    min_replicas: 3
+    max_replicas: 20
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+
+# Caching Configuration
+caching:
+  enabled: true
+  ttl_seconds: 3600  # 1 hour
+  max_size_mb: 2048
+  redis_cache: true
+  distributed_cache: true
+  cache_warming: true
+  
+# Logging Configuration
+logging:
+  level: WARN
+  format: json
+  file_path: /var/log/mlops/production.log
+  max_file_size_mb: 1024
+  backup_count: 20
+  
+  # Centralized logging
+  centralized_logging:
+    enabled: true
+    endpoint: https://logs.company.com/api/v1/ingest
+    api_key: ${LOGGING_API_KEY}
+    compression: gzip
+    batch_size: 1000
+  
+  # Log specific components
+  loggers:
+    training: WARN
+    serving: INFO
+    monitoring: INFO
+    security: INFO
+    performance: INFO
+    root: WARN
+
+# Health Checks
+health_checks:
+  enabled: true
+  interval_seconds: 15
+  timeout_seconds: 5
+  
+  endpoints:
+    - name: database_primary
+      type: postgresql
+      connection_string: ${DATABASE_URL}
+      critical: true
+    - name: database_replica
+      type: postgresql
+      connection_string: ${DATABASE_REPLICA_URL}
+      critical: false
+    - name: redis
+      type: redis
+      connection_string: ${REDIS_URL}
+      critical: true
+    - name: mlflow
+      type: http
+      url: ${MLFLOW_TRACKING_URI}/health
+      critical: true
+    - name: feature_store
+      type: http
+      url: https://feature-store.company.com/health
+      critical: false
+
+# Deployment Configuration
+deployment:
+  strategy: canary
+  canary_percentage: 5
+  rollback_threshold: 0.01  # 1% error rate
+  health_check_grace_period: 120
+  traffic_split:
+    canary: 5
+    stable: 95
+  
+  blue_green:
+    enabled: true
+    validation_time_minutes: 30
+    automatic_promotion: false
+
+# Model Validation
+model_validation:
+  enabled: true
+  minimum_accuracy: 0.85
+  minimum_precision: 0.80
+  minimum_recall: 0.80
+  minimum_f1_score: 0.80
+  drift_threshold: 0.02
+  performance_degradation_threshold: 0.05
+  
+  validation_data:
+    source: s3://mlops-prod-data/validation/
+    refresh_interval_hours: 6
+    backup_source: s3://mlops-prod-data-backup/validation/
+  
+  champion_challenger:
+    enabled: true
+    challenger_traffic_percentage: 10
+    evaluation_period_hours: 72
+
+# Data Quality
+data_quality:
+  enabled: true
+  validation_rules_path: config/data_quality/production_rules.yaml
+  fail_on_error: true
+  generate_reports: true
+  report_storage: s3://mlops-prod-reports/data-quality/
+  
+  anomaly_detection:
+    enabled: true
+    sensitivity: medium
+    methods: ["isolation_forest", "one_class_svm", "statistical"]
+
+# Compliance and Governance
+compliance:
+  data_retention_days: 2555  # 7 years
+  audit_logging: true
+  encrypt_at_rest: true
+  encrypt_in_transit: true
+  
+  privacy:
+    anonymize_logs: true
+    data_masking: true
+    gdpr_compliance: true
+    ccpa_compliance: true
+    right_to_be_forgotten: true
+  
+  regulatory:
+    sox_compliance: true
+    iso_27001: true
+    soc2_type2: true
+    
+# Disaster Recovery
+disaster_recovery:
+  enabled: true
+  backup_frequency_hours: 6
+  backup_retention_days: 30
+  cross_region_replication: true
+  
+  failover:
+    automatic: true
+    rto_minutes: 15  # Recovery Time Objective
+    rpo_minutes: 5   # Recovery Point Objective
+    
+# Performance Optimization
+performance:
+  caching_strategy: aggressive
+  connection_pooling: true
+  query_optimization: true
+  model_caching: true
+  
+  auto_scaling:
+    predictive: true
+    reactive: true
+    schedule_based: true
+    
+# Cost Optimization
+cost_optimization:
+  enabled: true
+  auto_shutdown_idle_resources: true
+  spot_instances: false  # Disabled for production stability
+  resource_rightsizing: true
+  scheduled_scaling: true

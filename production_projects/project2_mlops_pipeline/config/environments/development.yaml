@@ -1,0 +1,167 @@
+# Development Environment Configuration
+
+# Environment Settings
+environment: development
+debug: true
+log_level: DEBUG
+
+# API Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 1
+  reload: true
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+    allow_credentials: true
+
+# Database Configuration
+database:
+  url: postgresql://mlflow:mlflow@localhost:5432/mlflow
+  pool_size: 5
+  max_overflow: 10
+  echo: true  # Log SQL queries in development
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: http://localhost:5000
+  experiment_name: mlops_development
+  artifact_root: ./mlruns
+  registry_uri: sqlite:///mlflow.db
+
+# Redis Configuration
+redis:
+  url: redis://localhost:6379/0
+  max_connections: 10
+  socket_timeout: 5
+
+# Storage Configuration
+storage:
+  type: local
+  base_path: ./data
+  model_artifacts_path: ./models
+  
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  batch_size: 100
+  collection_interval: 30  # seconds
+  retention_days: 7
+  
+  # Drift Detection
+  drift_detection:
+    enabled: true
+    reference_window_size: 1000
+    detection_window_size: 100
+    threshold: 0.05
+    methods: ["ks_test", "chi2_test"]
+  
+  # Alerting
+  alerting:
+    enabled: false  # Disable alerts in development
+    webhook_url: null
+    slack_token: null
+
+# Training Configuration
+training:
+  data:
+    synthetic_data_size: 10000
+    test_size: 0.2
+    val_size: 0.2
+    random_state: 42
+  
+  models:
+    default_models: ["random_forest", "logistic_regression", "gradient_boosting"]
+    hyperparameter_tuning: false  # Skip HP tuning in dev
+    cross_validation_folds: 3
+  
+  pipeline:
+    parallel_training: false
+    max_workers: 1
+    timeout_minutes: 30
+
+# Security Configuration
+security:
+  rate_limiting:
+    enabled: false  # Disable rate limiting in development
+    requests_per_minute: 1000
+  
+  authentication:
+    enabled: false  # Disable auth in development
+    jwt_secret: dev_secret_key
+    token_expiry_hours: 24
+  
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+
+# Feature Flags
+features:
+  enable_batch_prediction: true
+  enable_drift_detection: true
+  enable_model_explanation: true
+  enable_a_b_testing: true
+  enable_hyperparameter_tuning: false  # Disable for faster dev cycles
+  enable_advanced_monitoring: false
+
+# External Services
+external_services:
+  # Mock external services in development
+  data_sources:
+    primary_database:
+      type: mock
+      mock_data_size: 1000
+    
+  notification_services:
+    slack:
+      enabled: false
+    email:
+      enabled: false
+
+# Resource Limits
+resources:
+  max_memory_mb: 2048
+  max_cpu_cores: 2
+  max_concurrent_requests: 100
+  max_batch_size: 1000
+  request_timeout_seconds: 30
+
+# Caching Configuration
+caching:
+  enabled: true
+  ttl_seconds: 300  # 5 minutes
+  max_size_mb: 100
+  
+# Logging Configuration
+logging:
+  level: DEBUG
+  format: detailed
+  file_path: ./logs/development.log
+  max_file_size_mb: 100
+  backup_count: 5
+  
+  # Log specific components
+  loggers:
+    training: DEBUG
+    serving: DEBUG
+    monitoring: DEBUG
+    root: INFO
+
+# Development Tools
+development:
+  hot_reload: true
+  debug_mode: true
+  profiling: false
+  mock_external_services: true
+  seed_database: true
+  
+  # Test data generation
+  generate_test_data: true
+  test_data_size: 1000
+  
+  # Development endpoints
+  enable_debug_endpoints: true
+  enable_admin_endpoints: true

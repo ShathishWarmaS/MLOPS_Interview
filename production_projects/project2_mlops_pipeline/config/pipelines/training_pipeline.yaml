@@ -1,0 +1,362 @@
+# Training Pipeline Configuration
+
+pipeline:
+  name: training_pipeline
+  description: "End-to-end ML training pipeline"
+  version: "1.0"
+  
+# Pipeline Stages
+stages:
+  data_extraction:
+    enabled: true
+    order: 1
+    
+    sources:
+      - name: primary_database
+        type: postgresql
+        priority: 1
+        config:
+          query_path: "sql/extract_training_data.sql"
+          batch_size: 10000
+          timeout_minutes: 30
+      
+      - name: feature_store
+        type: api
+        priority: 2
+        config:
+          endpoint: "/api/v1/features"
+          batch_size: 5000
+          timeout_minutes: 15
+    
+    output:
+      format: parquet
+      location: "data/raw/"
+      partitioning: ["date", "source"]
+      compression: snappy
+  
+  data_validation:
+    enabled: true
+    order: 2
+    depends_on: ["data_extraction"]
+    
+    validation_rules:
+      completeness:
+        - column: "feature_1"
+          threshold: 0.95
+        - column: "target"
+          threshold: 1.0
+      
+      schema_validation:
+        enforce_types: true
+        allow_extra_columns: false
+        schema_path: "config/schemas/training_data_schema.json"
+      
+      data_quality:
+        outlier_detection: true
+        duplicate_detection: true
+        consistency_checks: true
+    
+    actions:
+      on_failure: "fail"  # fail, warn, skip
+      generate_report: true
+      send_alerts: true
+  
+  data_preprocessing:
+    enabled: true
+    order: 3
+    depends_on: ["data_validation"]
+    
+    transformations:
+      missing_values:
+        numerical:
+          strategy: "median"
+          indicator: false
+        categorical:
+          strategy: "mode"
+          fill_value: "unknown"
+      
+      outlier_handling:
+        method: "iqr"
+        factor: 1.5
+        action: "remove"  # remove, cap, transform
+      
+      feature_scaling:
+        numerical_features: "standard"
+        preserve_columns: ["target"]
+      
+      encoding:
+        categorical:
+          method: "onehot"
+          handle_unknown: "ignore"
+          drop_first: true
+    
+    feature_engineering:
+      polynomial_features:
+        enabled: false
+        degree: 2
+        interaction_only: false
+      
+      time_features:
+        enabled: true
+        extract: ["hour", "day_of_week", "month", "quarter"]
+      
+      custom_features:
+        enabled: true
+        config_path: "config/features/custom_features.yaml"
+  
+  data_splitting:
+    enabled: true
+    order: 4
+    depends_on: ["data_preprocessing"]
+    
+    strategy: "stratified"
+    test_size: 0.2
+    validation_size: 0.2
+    random_state: 42
+    
+    output_format: "parquet"
+    save_splits: true
+    split_location: "data/splits/"
+  
+  model_training:
+    enabled: true
+    order: 5
+    depends_on: ["data_splitting"]
+    
+    models:
+      - name: "random_forest"
+        config_path: "config/models/random_forest.yaml"
+        enabled: true
+        priority: 1
+      
+      - name: "logistic_regression"
+        config_path: "config/models/logistic_regression.yaml"
+        enabled: true
+        priority: 2
+      
+      - name: "gradient_boosting"
+        config_path: "config/models/gradient_boosting.yaml"
+        enabled: true
+        priority: 3
+    
+    parallel_training:
+      enabled: true
+      max_workers: 3
+      timeout_per_model_minutes: 60
+    
+    hyperparameter_tuning:
+      enabled: true
+      method: "optuna"  # grid_search, random_search, optuna
+      n_trials: 100
+      timeout_minutes: 120
+      
+    cross_validation:
+      enabled: true
+      folds: 5
+      scoring: "f1_macro"
+      stratified: true
+  
+  model_evaluation:
+    enabled: true
+    order: 6
+    depends_on: ["model_training"]
+    
+    metrics:
+      classification:
+        - accuracy
+        - precision
+        - recall
+        - f1_score
+        - roc_auc
+        - log_loss
+        - confusion_matrix
+      
+      business_metrics:
+        - precision_at_k
+        - recall_at_k
+        - lift_score
+        - profit_curve
+    
+    evaluation_sets:
+      - name: "validation"
+        required: true
+      - name: "test"
+        required: true
+    
+    model_comparison:
+      enabled: true
+      selection_metric: "f1_score"
+      selection_strategy: "best"  # best, ensemble, voting
+    
+    threshold_optimization:
+      enabled: true
+      metric: "f1_score"
+      method: "youden_j"  # youden_j, f1_optimal, precision_recall
+  
+  model_validation:
+    enabled: true
+    order: 7
+    depends_on: ["model_evaluation"]
+    
+    validation_tests:
+      minimum_performance:
+        accuracy: 0.75
+        f1_score: 0.70
+        precision: 0.70
+        recall: 0.70
+      
+      bias_detection:
+        enabled: true
+        protected_attributes: ["age_group", "gender"]
+        fairness_metrics: ["equalized_odds", "demographic_parity"]
+      
+      drift_validation:
+        enabled: true
+        reference_data_path: "data/reference/"
+        drift_threshold: 0.05
+      
+      stability_test:
+        enabled: true
+        perturbation_tests: true
+        adversarial_tests: false
+    
+    approval_process:
+      auto_approve: false
+      required_approvers: ["mlops_team", "data_science_team"]
+      approval_threshold_days: 2
+  
+  model_registration:
+    enabled: true
+    order: 8
+    depends_on: ["model_validation"]
+    
+    registry:
+      type: "mlflow"
+      model_name: "fraud_detection_model"
+      stage: "staging"
+      
+    versioning:
+      strategy: "semantic"  # semantic, timestamp, hash
+      auto_increment: true
+    
+    metadata:
+      include_training_data_hash: true
+      include_code_version: true
+      include_experiment_params: true
+      include_metrics: true
+      include_artifacts: true
+    
+    artifacts:
+      model_file: true
+      preprocessor: true
+      feature_importance: true
+      evaluation_report: true
+      training_plots: true
+
+# Pipeline Configuration
+config:
+  execution:
+    mode: "sequential"  # sequential, parallel, dag
+    max_retries: 3
+    retry_delay_seconds: 60
+    timeout_hours: 6
+    
+  logging:
+    level: "INFO"
+    log_to_file: true
+    log_file_path: "logs/training_pipeline.log"
+    
+  monitoring:
+    enabled: true
+    track_metrics: true
+    send_notifications: true
+    
+  resource_management:
+    cpu_limit: 8
+    memory_limit_gb: 16
+    gpu_required: false
+    priority: "normal"
+
+# Triggers
+triggers:
+  scheduled:
+    enabled: true
+    cron: "0 2 * * 1"  # Every Monday at 2 AM
+    timezone: "UTC"
+    
+  data_driven:
+    enabled: true
+    data_freshness_hours: 24
+    minimum_new_samples: 1000
+    
+  performance_driven:
+    enabled: true
+    performance_threshold: 0.05  # 5% degradation
+    monitoring_window_days: 7
+    
+  manual:
+    enabled: true
+    require_approval: true
+
+# Notifications
+notifications:
+  success:
+    enabled: true
+    channels: ["slack", "email"]
+    recipients:
+      slack: "#mlops-alerts"
+      email: ["mlops-team@company.com"]
+    
+  failure:
+    enabled: true
+    channels: ["slack", "email", "pagerduty"]
+    recipients:
+      slack: "#mlops-alerts"
+      email: ["mlops-oncall@company.com"]
+      pagerduty: "mlops-service"
+    
+  warnings:
+    enabled: true
+    channels: ["slack"]
+    recipients:
+      slack: "#mlops-warnings"
+
+# Rollback Configuration
+rollback:
+  enabled: true
+  automatic:
+    enabled: true
+    triggers:
+      - "validation_failure"
+      - "deployment_failure"
+      - "performance_degradation"
+    
+  manual:
+    enabled: true
+    require_approval: true
+    approval_timeout_hours: 4
+
+# Data Lineage
+lineage:
+  enabled: true
+  track_data_sources: true
+  track_transformations: true
+  track_model_ancestry: true
+  integration: "datahub"  # datahub, atlas, custom
+
+# Experiment Tracking
+experiment_tracking:
+  enabled: true
+  platform: "mlflow"
+  
+  tracking:
+    parameters: true
+    metrics: true
+    artifacts: true
+    code_version: true
+    
+  auto_logging:
+    sklearn: true
+    xgboost: true
+    tensorflow: false
+    pytorch: false
