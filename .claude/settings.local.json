@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(git add:*)",
+      "Bash(open /Users/shathishwarmas/mlops_interview_prep/production_projects/project5_n8n_nocode_platform/demo/working-ml-demo.html)",
+      "Bash(open /Users/shathishwarmas/mlops_interview_prep/production_projects/project5_n8n_nocode_platform/demo/enhanced-mlops-with-dataset-management.html)",
+      "Bash(open /Users/shathishwarmas/mlops_interview_prep/production_projects/project5_n8n_nocode_platform/demo/fully-customizable-realtime-mlops.html)",
+      "Bash(npm:*)",
+      "Bash(node:*)"
+    ],
+    "deny": []
+  }
+}

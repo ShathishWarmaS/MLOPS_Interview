@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>n8n MLOps Platform - Visual Workflow Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .app-title h1 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .workflow-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-success { background: #7ed321; color: white; }
+        .btn-secondary { background: #f5f5f5; color: #333; }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .node-palette {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .palette-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .palette-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #666;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        .node-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .node-item:hover {
+            background: #e3f2fd;
+            border-color: #4a90e2;
+        }
+
+        .node-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .node-info h4 {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .node-info p {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #fafbfc;
+            overflow: hidden;
+        }
+
+        .canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-image: 
+                radial-gradient(circle, #ddd 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .workflow-node {
+            position: absolute;
+            width: 200px;
+            min-height: 80px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: move;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .workflow-node:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            border-color: #4a90e2;
+        }
+
+        .workflow-node.selected {
+            border-color: #4a90e2;
+            box-shadow: 0 4px 16px rgba(74, 144, 226, 0.3);
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .node-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .node-description {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        .connection-point {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4a90e2;
+            position: absolute;
+            cursor: crosshair;
+        }
+
+        .input-point {
+            left: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .output-point {
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .connection-line {
+            position: absolute;
+            stroke: #4a90e2;
+            stroke-width: 2;
+            fill: none;
+            pointer-events: none;
+        }
+
+        .property-panel {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .status-bar {
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .execution-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .execution-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .execution-dot.running {
+            background: #ffc107;
+        }
+
+        .execution-dot.error {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .demo-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-banner">
+        🚀 n8n MLOps Platform Demo - Interactive Visual Workflow Builder
+    </div>
+
+    <div class="app-header">
+        <div class="app-title">
+            <h1>🔄 n8n MLOps Platform</h1>
+            <span style="background: #e3f2fd; color: #1976d2; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                ML Training Pipeline
+            </span>
+        </div>
+        <div class="workflow-controls">
+            <button class="btn btn-secondary" onclick="addNode()">
+                ➕ Add Node
+            </button>
+            <button class="btn btn-primary" onclick="saveWorkflow()">
+                💾 Save
+            </button>
+            <button class="btn btn-success" onclick="executeWorkflow()">
+                ▶️ Execute
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Node Palette -->
+        <div class="node-palette">
+            <div class="palette-section">
+                <div class="palette-title">Data Sources</div>
+                <div class="node-item" draggable="true" data-node-type="dataSource">
+                    <div class="node-icon" style="background: #28a745;">📊</div>
+                    <div class="node-info">
+                        <h4>Data Source</h4>
+                        <p>Load data from files, databases, APIs</p>
+                    </div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="dataValidation">
+                    <div class="node-icon" style="background: #ffc107;">✅</div>
+                    <div class="node-info">
+                        <h4>Data Validation</h4>
+                        <p>Validate data quality and schema</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <div class="palette-title">ML Operations</div>
+                <div class="node-item" draggable="true" data-node-type="featureEngineering">
+                    <div class="node-icon" style="background: #6f42c1;">🔧</div>
+                    <div class="node-info">
+                        <h4>Feature Engineering</h4>
+                        <p>Transform and engineer features</p>
+                    </div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="modelTraining">
+                    <div class="node-icon" style="background: #dc3545;">🧠</div>
+                    <div class="node-info">
+                        <h4>Model Training</h4>
+                        <p>Train ML models with various algorithms</p>
+                    </div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="modelEvaluation">
+                    <div class="node-icon" style="background: #17a2b8;">📈</div>
+                    <div class="node-info">
+                        <h4>Model Evaluation</h4>
+                        <p>Evaluate model performance</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <div class="palette-title">Deployment</div>
+                <div class="node-item" draggable="true" data-node-type="modelDeployment">
+                    <div class="node-icon" style="background: #fd7e14;">🚀</div>
+                    <div class="node-info">
+                        <h4>Model Deployment</h4>
+                        <p>Deploy models to production</p>
+                    </div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="monitoring">
+                    <div class="node-icon" style="background: #20c997;">📊</div>
+                    <div class="node-info">
+                        <h4>Monitoring</h4>
+                        <p>Monitor model performance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-container">
+            <div class="canvas" id="canvas">
+                <svg id="connections" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                </svg>
+            </div>
+        </div>
+
+        <!-- Property Panel -->
+        <div class="property-panel" id="propertyPanel">
+            <div class="panel-title">Node Properties</div>
+            <div id="nodeProperties">
+                <p style="color: #666; text-align: center; margin-top: 2rem;">
+                    Select a node to edit its properties
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div>
+            <span>Nodes: <span id="nodeCount">0</span></span>
+            <span style="margin-left: 1rem;">Connections: <span id="connectionCount">0</span></span>
+        </div>
+        <div class="execution-indicator">
+            <div class="execution-dot" id="executionStatus"></div>
+            <span id="executionText">Ready</span>
+        </div>
+    </div>
+
+    <script>
+        // Demo JavaScript for interactive workflow builder
+        let nodes = [];
+        let connections = [];
+        let selectedNode = null;
+        let draggedNode = null;
+        let nodeCounter = 0;
+        let isConnecting = false;
+        let connectionStart = null;
+
+        // Sample workflow nodes
+        const sampleNodes = [
+            {
+                id: 'node_1',
+                type: 'dataSource',
+                title: 'Load Training Data',
+                x: 100,
+                y: 100,
+                properties: {
+                    source: 'database',
+                    query: 'SELECT * FROM training_data'
+                }
+            },
+            {
+                id: 'node_2',
+                type: 'featureEngineering',
+                title: 'Feature Engineering',
+                x: 400,
+                y: 100,
+                properties: {
+                    operations: ['scaling', 'encoding'],
+                    targetColumn: 'target'
+                }
+            },
+            {
+                id: 'node_3',
+                type: 'modelTraining',
+                title: 'Train XGBoost Model',
+                x: 700,
+                y: 100,
+                properties: {
+                    algorithm: 'xgboost',
+                    hyperparameters: {
+                        n_estimators: 100,
+                        max_depth: 6
+                    }
+                }
+            }
+        ];
+
+        // Initialize demo with sample workflow
+        function initDemo() {
+            sampleNodes.forEach(node => {
+                nodes.push(node);
+                createNodeElement(node);
+            });
+
+            // Add sample connections
+            connections.push({
+                id: 'conn_1',
+                source: 'node_1',
+                target: 'node_2'
+            });
+            connections.push({
+                id: 'conn_2',
+                source: 'node_2',
+                target: 'node_3'
+            });
+
+            updateStats();
+            drawConnections();
+        }
+
+        function createNodeElement(node) {
+            const canvas = document.getElementById('canvas');
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'workflow-node';
+            nodeEl.id = node.id;
+            nodeEl.style.left = node.x + 'px';
+            nodeEl.style.top = node.y + 'px';
+            
+            const iconMap = {
+                dataSource: '📊',
+                dataValidation: '✅',
+                featureEngineering: '🔧',
+                modelTraining: '🧠',
+                modelEvaluation: '📈',
+                modelDeployment: '🚀',
+                monitoring: '📊'
+            };
+
+            nodeEl.innerHTML = `
+                <div class="connection-point input-point"></div>
+                <div class="node-header">
+                    <span>${iconMap[node.type] || '⚙️'}</span>
+                    <span class="node-title">${node.title}</span>
+                </div>
+                <div class="node-description">
+                    ${getNodeDescription(node.type)}
+                </div>
+                <div class="connection-point output-point"></div>
+            `;
+
+            // Add event listeners
+            nodeEl.addEventListener('click', () => selectNode(node.id));
+            nodeEl.addEventListener('mousedown', (e) => startDrag(e, node.id));
+
+            canvas.appendChild(nodeEl);
+        }
+
+        function getNodeDescription(type) {
+            const descriptions = {
+                dataSource: 'Loads data from various sources',
+                dataValidation: 'Validates data quality and schema',
+                featureEngineering: 'Transforms and engineers features',
+                modelTraining: 'Trains ML models',
+                modelEvaluation: 'Evaluates model performance',
+                modelDeployment: 'Deploys models to production',
+                monitoring: 'Monitors model performance'
+            };
+            return descriptions[type] || 'Custom node operation';
+        }
+
+        function selectNode(nodeId) {
+            // Remove previous selection
+            document.querySelectorAll('.workflow-node').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Select new node
+            const nodeEl = document.getElementById(nodeId);
+            nodeEl.classList.add('selected');
+            selectedNode = nodeId;
+
+            // Update property panel
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                showNodeProperties(node);
+            }
+        }
+
+        function showNodeProperties(node) {
+            const panel = document.getElementById('nodeProperties');
+            panel.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">Node Name</label>
+                    <input type="text" class="form-input" value="${node.title}" 
+                           onchange="updateNodeProperty('${node.id}', 'title', this.value)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Node Type</label>
+                    <select class="form-select" disabled>
+                        <option value="${node.type}">${node.type}</option>
+                    </select>
+                </div>
+                ${generatePropertyFields(node)}
+            `;
+        }
+
+        function generatePropertyFields(node) {
+            let fields = '';
+            
+            switch (node.type) {
+                case 'dataSource':
+                    fields = `
+                        <div class="form-group">
+                            <label class="form-label">Data Source</label>
+                            <select class="form-select">
+                                <option value="database">Database</option>
+                                <option value="file">File</option>
+                                <option value="api">API</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Query/Path</label>
+                            <textarea class="form-input" rows="3">${node.properties.query || ''}</textarea>
+                        </div>
+                    `;
+                    break;
+                case 'modelTraining':
+                    fields = `
+                        <div class="form-group">
+                            <label class="form-label">Algorithm</label>
+                            <select class="form-select">
+                                <option value="xgboost">XGBoost</option>
+                                <option value="random_forest">Random Forest</option>
+                                <option value="neural_network">Neural Network</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hyperparameters (JSON)</label>
+                            <textarea class="form-input" rows="4">${JSON.stringify(node.properties.hyperparameters || {}, null, 2)}</textarea>
+                        </div>
+                    `;
+                    break;
+                default:
+                    fields = `
+                        <div class="form-group">
+                            <label class="form-label">Configuration</label>
+                            <textarea class="form-input" rows="4">${JSON.stringify(node.properties || {}, null, 2)}</textarea>
+                        </div>
+                    `;
+            }
+            
+            return fields;
+        }
+
+        function updateNodeProperty(nodeId, property, value) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                node[property] = value;
+                // Update the visual node title if needed
+                if (property === 'title') {
+                    const nodeEl = document.getElementById(nodeId);
+                    const titleEl = nodeEl.querySelector('.node-title');
+                    titleEl.textContent = value;
+                }
+            }
+        }
+
+        function drawConnections() {
+            const svg = document.getElementById('connections');
+            svg.innerHTML = '';
+
+            connections.forEach(conn => {
+                const sourceNode = document.getElementById(conn.source);
+                const targetNode = document.getElementById(conn.target);
+                
+                if (sourceNode && targetNode) {
+                    const sourceRect = sourceNode.getBoundingClientRect();
+                    const targetRect = targetNode.getBoundingClientRect();
+                    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                    
+                    const startX = sourceRect.right - canvasRect.left;
+                    const startY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+                    const endX = targetRect.left - canvasRect.left;
+                    const endY = targetRect.top + targetRect.height / 2 - canvasRect.top;
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const controlPointOffset = Math.min(Math.abs(endX - startX) * 0.5, 100);
+                    const d = `M ${startX} ${startY} C ${startX + controlPointOffset} ${startY} ${endX - controlPointOffset} ${endY} ${endX} ${endY}`;
+                    
+                    path.setAttribute('d', d);
+                    path.setAttribute('class', 'connection-line');
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('nodeCount').textContent = nodes.length;
+            document.getElementById('connectionCount').textContent = connections.length;
+        }
+
+        // Workflow controls
+        function addNode() {
+            alert('Drag a node from the palette to the canvas to add it!');
+        }
+
+        function saveWorkflow() {
+            const executionStatus = document.getElementById('executionStatus');
+            const executionText = document.getElementById('executionText');
+            
+            executionStatus.className = 'execution-dot';
+            executionText.textContent = 'Saved';
+            
+            setTimeout(() => {
+                executionText.textContent = 'Ready';
+            }, 2000);
+            
+            console.log('Workflow saved:', { nodes, connections });
+        }
+
+        function executeWorkflow() {
+            const executionStatus = document.getElementById('executionStatus');
+            const executionText = document.getElementById('executionText');
+            
+            executionStatus.className = 'execution-dot running';
+            executionText.textContent = 'Executing...';
+            
+            // Simulate execution steps
+            let step = 0;
+            const steps = ['Loading data...', 'Processing features...', 'Training model...', 'Completed!'];
+            
+            const interval = setInterval(() => {
+                if (step < steps.length - 1) {
+                    executionText.textContent = steps[step];
+                    step++;
+                } else {
+                    executionStatus.className = 'execution-dot';
+                    executionText.textContent = steps[step];
+                    clearInterval(interval);
+                    
+                    setTimeout(() => {
+                        executionText.textContent = 'Ready';
+                    }, 3000);
+                }
+            }, 2000);
+        }
+
+        // Drag and drop functionality
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('node-item')) {
+                e.dataTransfer.setData('text/plain', e.target.getAttribute('data-node-type'));
+            }
+        });
+
+        document.getElementById('canvas').addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        document.getElementById('canvas').addEventListener('drop', (e) => {
+            e.preventDefault();
+            const nodeType = e.dataTransfer.getData('text/plain');
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left - 100; // Center the node
+            const y = e.clientY - rect.top - 40;
+            
+            const newNode = {
+                id: `node_${++nodeCounter + 3}`,
+                type: nodeType,
+                title: `New ${nodeType}`,
+                x: Math.max(0, x),
+                y: Math.max(0, y),
+                properties: {}
+            };
+            
+            nodes.push(newNode);
+            createNodeElement(newNode);
+            updateStats();
+        });
+
+        // Initialize the demo
+        window.addEventListener('load', initDemo);
+        window.addEventListener('resize', drawConnections);
+    </script>
+</body>
+</html>
